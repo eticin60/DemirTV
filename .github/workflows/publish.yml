@@ -29,6 +29,8 @@ jobs:
 
       - name: Auto bump version (tag-driven)
         run: |
+          git fetch origin main
+          git pull --rebase origin main
           TAG_NAME=${GITHUB_REF_NAME}
           VERSION_NAME=${TAG_NAME#v}
           BASE_CODE=1000
@@ -98,5 +100,4 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add update.json app/build.gradle.kts
           git commit -m "Update version and update.json for ${GITHUB_REF_NAME}" || echo "No changes"
-          git pull --rebase origin main
           git push origin HEAD:main
