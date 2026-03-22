@@ -33,6 +33,17 @@ jobs:
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > ${{ runner.temp }}/demirtv_keystore.jks
 
+      - name: Set version for build (tag-driven)
+        run: |
+          TAG_NAME=${GITHUB_REF_NAME}
+          VERSION_NAME=${TAG_NAME#v}
+          MAJOR=$(echo "${VERSION_NAME}" | cut -d. -f1)
+          MINOR=$(echo "${VERSION_NAME}" | cut -d. -f2)
+          if [ -z "$MINOR" ]; then MINOR=0; fi
+          VERSION_CODE=$((MAJOR * 10 + MINOR))
+          sed -i -E "s/versionCode\\s*=\\s*[0-9]+/versionCode = ${VERSION_CODE}/" app/build.gradle.kts
+          sed -i -E "s/versionName\\s*=\\s*\\\"[^\\\"]+\\\"/versionName = \\\"${VERSION_NAME}\\\"/" app/build.gradle.kts
+
       - name: Build APK (release, signed)
         env:
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/demirtv_keystore.jks
