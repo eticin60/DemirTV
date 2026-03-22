@@ -15,7 +15,7 @@ import java.net.URL
 
 object UpdateManager {
     // GitHub Raw URL for update.json
-    private const val UPDATE_URL = "https://raw.githubusercontent.com/eticin60/DemirTV/main/update.json"
+    private const val UPDATE_URL = "https://raw.githubusercontent.com/eticin60/DemirTV/master/update.json"
 
     @Composable
     fun CheckForUpdates(context: Context) {
