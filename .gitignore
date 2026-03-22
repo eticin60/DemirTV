@@ -1,15 +1,22 @@
+# Gradle & build
+.gradle/
+build/
+**/build/
+
+# Android Studio
+.idea/
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+build_error.txt
+build_error_kotlin.txt
+build_log.txt
+build_output.txt
+
+# OS
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
+Thumbs.db
