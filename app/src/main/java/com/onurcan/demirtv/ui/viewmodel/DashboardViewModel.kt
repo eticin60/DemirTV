@@ -28,7 +28,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     val isLoading: StateFlow<Boolean> = _isLoading
 
     private val parser = M3UParser()
-    private val channelSourceUrl = "https://raw.githubusercontent.com/eticin60/DemirTV/master/DemirTV.m3u"
+    private val channelSourceUrl = "https://raw.githubusercontent.com/eticin60/DemirTV/main/DemirTV.m3u"
     private val cacheFileName = "channels_cache.m3u"
 
     private val bannedKeywords = listOf(
