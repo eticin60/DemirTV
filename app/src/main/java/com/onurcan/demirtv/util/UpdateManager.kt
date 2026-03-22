@@ -131,7 +131,7 @@ object UpdateManager {
                                     Uri.parse("package:${context.packageName}")
                                 )
                                 context.startActivity(intent)
-                                return@TextButton
+                                return@Button
                             }
 
                             isDownloading = true
