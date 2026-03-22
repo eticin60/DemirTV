@@ -11,12 +11,15 @@ import com.onurcan.demirtv.BuildConfig
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.Image
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -25,6 +28,10 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 import java.net.URL
+import android.os.SystemClock
+import com.onurcan.demirtv.R
+import com.onurcan.demirtv.ui.theme.RedPrimary
+import com.onurcan.demirtv.ui.theme.White
 
 object UpdateManager {
     // GitHub Raw URL for update.json
@@ -37,6 +44,9 @@ object UpdateManager {
         var isDownloading by remember { mutableStateOf(false) }
         var downloadStatus by remember { mutableStateOf("İndiriliyor...") }
         var progressPercent by remember { mutableStateOf(0) }
+        var downloadedBytes by remember { mutableStateOf(0L) }
+        var totalBytes by remember { mutableStateOf(0L) }
+        var speedBps by remember { mutableStateOf(0L) }
         val scope = rememberCoroutineScope()
         
         val currentVersionCode = BuildConfig.VERSION_CODE
@@ -57,6 +67,12 @@ object UpdateManager {
                 title = { Text("Yeni Sürüm Hazır") },
                 text = {
                     Column {
+                        Image(
+                            painter = painterResource(id = R.drawable.logo_demirtv),
+                            contentDescription = "DemirTV",
+                            modifier = Modifier.size(72.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             if (updateInfo!!.forceUpdate) {
                                 "Bu güncelleme zorunludur. Devam etmek için lütfen güncelleyin."
@@ -69,7 +85,12 @@ object UpdateManager {
                             Spacer(modifier = Modifier.height(16.dp))
                             LinearProgressIndicator(progress = progressPercent / 100f)
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("$downloadStatus %$progressPercent")
+                            Text("$downloadStatus %$progressPercent", color = RedPrimary)
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                "${formatMb(downloadedBytes)} / ${formatMb(totalBytes)} • ${formatSpeed(speedBps)}",
+                                color = White
+                            )
                         }
                     }
                 },
@@ -89,6 +110,9 @@ object UpdateManager {
                             isDownloading = true
                             downloadStatus = "İndiriliyor..."
                             progressPercent = 0
+                            downloadedBytes = 0
+                            totalBytes = 0
+                            speedBps = 0
                             val info = updateInfo!!
 
                             // Start download & then trigger installer
@@ -96,8 +120,11 @@ object UpdateManager {
                                 val result = downloadApk(
                                     context = context,
                                     url = info.downloadUrl,
-                                    onProgress = { percent ->
+                                    onProgress = { percent, downloaded, total, speed ->
                                         progressPercent = percent
+                                        downloadedBytes = downloaded
+                                        totalBytes = total
+                                        speedBps = speed
                                     }
                                 )
                                 if (result != null) {
@@ -148,7 +175,7 @@ object UpdateManager {
     private suspend fun downloadApk(
         context: Context,
         url: String,
-        onProgress: (Int) -> Unit
+        onProgress: (Int, Long, Long, Long) -> Unit
     ): Uri? = withContext(Dispatchers.IO) {
         try {
             val fileName = "DemirTV-update.apk"
@@ -165,6 +192,9 @@ object UpdateManager {
             val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             val id = dm.enqueue(request)
 
+            var lastBytes = 0L
+            var lastTime = SystemClock.elapsedRealtime()
+
             while (true) {
                 val query = DownloadManager.Query().setFilterById(id)
                 dm.query(query).use { cursor ->
@@ -174,7 +204,15 @@ object UpdateManager {
                         val downloaded = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
                         if (total > 0) {
                             val percent = ((downloaded * 100) / total).toInt().coerceIn(0, 100)
-                            onProgress(percent)
+                            val now = SystemClock.elapsedRealtime()
+                            val deltaTimeMs = (now - lastTime).coerceAtLeast(1)
+                            val deltaBytes = (downloaded - lastBytes).coerceAtLeast(0)
+                            val speed = (deltaBytes * 1000L) / deltaTimeMs
+                            lastBytes = downloaded
+                            lastTime = now
+                            withContext(Dispatchers.Main) {
+                                onProgress(percent, downloaded, total, speed)
+                            }
                         }
                         if (status == DownloadManager.STATUS_SUCCESSFUL) {
                             val apkUri = FileProvider.getUriForFile(
@@ -203,5 +241,17 @@ object UpdateManager {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(intent)
+    }
+
+    private fun formatMb(bytes: Long): String {
+        if (bytes <= 0) return "0 MB"
+        val mb = bytes / (1024.0 * 1024.0)
+        return String.format("%.1f MB", mb)
+    }
+
+    private fun formatSpeed(bytesPerSec: Long): String {
+        if (bytesPerSec <= 0) return "0 MB/s"
+        val mb = bytesPerSec / (1024.0 * 1024.0)
+        return String.format("%.1f MB/s", mb)
     }
 }
