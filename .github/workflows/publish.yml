@@ -74,16 +74,20 @@ jobs:
           git checkout -B main origin/main
           TAG_NAME=${GITHUB_REF_NAME}
           VERSION_NAME=${TAG_NAME#v}
-          BASE_CODE=1000
-          NEXT_CODE=$((GITHUB_RUN_NUMBER + BASE_CODE))
+          MAJOR=$(echo "${VERSION_NAME}" | cut -d. -f1)
+          MINOR=$(echo "${VERSION_NAME}" | cut -d. -f2)
+          if [ -z "$MINOR" ]; then MINOR=0; fi
+          NEXT_CODE=$((MAJOR * 10 + MINOR))
           sed -i -E "s/versionCode\\s*=\\s*[0-9]+/versionCode = ${NEXT_CODE}/" app/build.gradle.kts
           sed -i -E "s/versionName\\s*=\\s*\\\"[^\\\"]+\\\"/versionName = \\\"${VERSION_NAME}\\\"/" app/build.gradle.kts
 
       - name: Update update.json
         run: |
-          BASE_CODE=1000
-          VERSION_CODE=$((GITHUB_RUN_NUMBER + BASE_CODE))
-          VERSION_NAME=$(grep -n "versionName" -m1 app/build.gradle.kts | sed -E 's/.*versionName\s*=\s*\"([^\"]+)\".*/\1/')
+          VERSION_NAME=${GITHUB_REF_NAME#v}
+          MAJOR=$(echo "${VERSION_NAME}" | cut -d. -f1)
+          MINOR=$(echo "${VERSION_NAME}" | cut -d. -f2)
+          if [ -z "$MINOR" ]; then MINOR=0; fi
+          VERSION_CODE=$((MAJOR * 10 + MINOR))
           DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${{ steps.prep.outputs.apk_name }}"
           cat > update.json << EOF
           {
