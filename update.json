@@ -1,6 +1,6 @@
 {
-  "versionCode": 2,
-  "versionName": "1.1",
-  "downloadUrl": "https://.../DemirTV.apk",
-  "forceUpdate": true
+  "versionCode": 15,
+  "versionName": "1.4",
+  "downloadUrl": "https://github.com/eticin60/DemirTV/releases/download/v1.4/DemirTV-v1.4.apk",
+  "forceUpdate": false
 }
