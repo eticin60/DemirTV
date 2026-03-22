@@ -36,6 +36,10 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         "sex", "cinsel", "sexy", "hot", "playboy", "night"
     )
 
+    private val priorityChannels = listOf(
+        "ATV", "Show TV", "Kanal D", "Star TV", "TRT 1", "TV8", "NOW", "FOX"
+    )
+
     fun selectProfile(profile: Profile) {
         _selectedProfile.value = profile
         fetchChannels()
@@ -60,7 +64,10 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                         }
 
                         filteredForProfile.sortedWith(
-                            compareByDescending<Channel> { channel ->
+                            compareBy<Channel> { channel ->
+                                val idx = priorityChannels.indexOfFirst { channel.name.contains(it, ignoreCase = true) }
+                                if (idx == -1) Int.MAX_VALUE else idx
+                            }.thenByDescending { channel ->
                                 WatchStats.getWatchCount(getApplication(), channel)
                             }.thenBy { it.name.lowercase() }
                         )
