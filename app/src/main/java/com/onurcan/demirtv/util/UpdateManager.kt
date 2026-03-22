@@ -170,7 +170,8 @@ object UpdateManager {
 
     private suspend fun fetchUpdateInfo(): UpdateInfo? = withContext(Dispatchers.IO) {
         try {
-            val jsonStr = URL(UPDATE_URL).readText()
+            val cacheBusted = "$UPDATE_URL?ts=${System.currentTimeMillis()}"
+            val jsonStr = URL(cacheBusted).readText()
             val json = JSONObject(jsonStr)
             UpdateInfo(
                 versionCode = json.getInt("versionCode"),
