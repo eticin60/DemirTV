@@ -13,12 +13,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -32,6 +38,7 @@ import android.os.SystemClock
 import com.onurcan.demirtv.R
 import com.onurcan.demirtv.ui.theme.RedPrimary
 import com.onurcan.demirtv.ui.theme.White
+import androidx.compose.ui.graphics.Color
 
 object UpdateManager {
     // GitHub Raw URL for update.json
@@ -47,6 +54,7 @@ object UpdateManager {
         var downloadedBytes by remember { mutableStateOf(0L) }
         var totalBytes by remember { mutableStateOf(0L) }
         var speedBps by remember { mutableStateOf(0L) }
+        var avgSpeedBps by remember { mutableStateOf(0L) }
         val scope = rememberCoroutineScope()
         
         val currentVersionCode = BuildConfig.VERSION_CODE
@@ -60,6 +68,12 @@ object UpdateManager {
         }
 
         if (showDialog && updateInfo != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .blur(8.dp)
+            )
             AlertDialog(
                 onDismissRequest = {
                     if (!updateInfo!!.forceUpdate) showDialog = false
@@ -87,10 +101,12 @@ object UpdateManager {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text("$downloadStatus %$progressPercent", color = RedPrimary)
                             Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                "${formatMb(downloadedBytes)} / ${formatMb(totalBytes)} • ${formatSpeed(speedBps)}",
-                                color = White
-                            )
+                            val sizeText = if (totalBytes > 0) {
+                                "${formatMb(downloadedBytes)} / ${formatMb(totalBytes)}"
+                            } else {
+                                "İndirilen: ${formatMb(downloadedBytes)}"
+                            }
+                            Text("$sizeText • Hız: ${formatSpeed(speedBps)} • Ort: ${formatSpeed(avgSpeedBps)}", color = White)
                         }
                     }
                 },
@@ -113,6 +129,7 @@ object UpdateManager {
                             downloadedBytes = 0
                             totalBytes = 0
                             speedBps = 0
+                            avgSpeedBps = 0
                             val info = updateInfo!!
 
                             // Start download & then trigger installer
@@ -120,11 +137,12 @@ object UpdateManager {
                                 val result = downloadApk(
                                     context = context,
                                     url = info.downloadUrl,
-                                    onProgress = { percent, downloaded, total, speed ->
+                                    onProgress = { percent, downloaded, total, speed, avgSpeed ->
                                         progressPercent = percent
                                         downloadedBytes = downloaded
                                         totalBytes = total
                                         speedBps = speed
+                                        avgSpeedBps = avgSpeed
                                     }
                                 )
                                 if (result != null) {
@@ -175,7 +193,7 @@ object UpdateManager {
     private suspend fun downloadApk(
         context: Context,
         url: String,
-        onProgress: (Int, Long, Long, Long) -> Unit
+        onProgress: (Int, Long, Long, Long, Long) -> Unit
     ): Uri? = withContext(Dispatchers.IO) {
         try {
             val fileName = "DemirTV-update.apk"
@@ -194,6 +212,7 @@ object UpdateManager {
 
             var lastBytes = 0L
             var lastTime = SystemClock.elapsedRealtime()
+            var avgSpeed = 0.0
 
             while (true) {
                 val query = DownloadManager.Query().setFilterById(id)
@@ -208,10 +227,22 @@ object UpdateManager {
                             val deltaTimeMs = (now - lastTime).coerceAtLeast(1)
                             val deltaBytes = (downloaded - lastBytes).coerceAtLeast(0)
                             val speed = (deltaBytes * 1000L) / deltaTimeMs
+                            avgSpeed = if (avgSpeed == 0.0) speed.toDouble() else (avgSpeed * 0.85 + speed * 0.15)
                             lastBytes = downloaded
                             lastTime = now
                             withContext(Dispatchers.Main) {
-                                onProgress(percent, downloaded, total, speed)
+                                onProgress(percent, downloaded, total, speed, avgSpeed.toLong())
+                            }
+                        } else {
+                            val now = SystemClock.elapsedRealtime()
+                            val deltaTimeMs = (now - lastTime).coerceAtLeast(1)
+                            val deltaBytes = (downloaded - lastBytes).coerceAtLeast(0)
+                            val speed = (deltaBytes * 1000L) / deltaTimeMs
+                            avgSpeed = if (avgSpeed == 0.0) speed.toDouble() else (avgSpeed * 0.85 + speed * 0.15)
+                            lastBytes = downloaded
+                            lastTime = now
+                            withContext(Dispatchers.Main) {
+                                onProgress(0, downloaded, total, speed, avgSpeed.toLong())
                             }
                         }
                         if (status == DownloadManager.STATUS_SUCCESSFUL) {
