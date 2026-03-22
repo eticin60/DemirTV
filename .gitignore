@@ -6,6 +6,7 @@ build/
 # Android Studio
 .idea/
 *.iml
+local.properties
 
 # VS Code
 .vscode/
