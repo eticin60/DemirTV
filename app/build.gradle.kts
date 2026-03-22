@@ -12,8 +12,8 @@ android {
         applicationId = "com.onurcan.demirtv"
         minSdk = 23
         targetSdk = 36
-        versionCode = 16
-        versionName = "1.7"
+        versionCode = 1013
+        versionName = "2.2"
 
     }
 
