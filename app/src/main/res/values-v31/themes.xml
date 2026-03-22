@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.DemirTV.Splash" parent="Theme.DemirTV">
+        <item name="android:windowSplashScreenBackground">@android:color/black</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/logo_demirtv</item>
+        <item name="android:windowSplashScreenAnimationDuration">250</item>
+        <item name="postSplashScreenTheme">@style/Theme.DemirTV</item>
+    </style>
+</resources>

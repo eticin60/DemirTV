@@ -1,0 +1,69 @@
+name: Publish APK
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build APK (debug)
+        run: ./gradlew :app:assembleDebug
+
+      - name: Prepare APK
+        id: prep
+        run: |
+          TAG_NAME=${GITHUB_REF_NAME}
+          APK_NAME="DemirTV-${TAG_NAME}.apk"
+          mkdir -p out
+          cp app/build/outputs/apk/debug/app-debug.apk "out/${APK_NAME}"
+          echo "apk_name=${APK_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/${{ steps.prep.outputs.apk_name }}
+          name: "DemirTV ${{ github.ref_name }}"
+          generate_release_notes: true
+
+      - name: Update update.json
+        run: |
+          VERSION_CODE=$(grep -n "versionCode" -m1 app/build.gradle.kts | sed -E 's/[^0-9]*([0-9]+).*/\1/')
+          VERSION_NAME=$(grep -n "versionName" -m1 app/build.gradle.kts | sed -E 's/.*versionName\s*=\s*\"([^\"]+)\".*/\1/')
+          DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${{ steps.prep.outputs.apk_name }}"
+          cat > update.json << EOF
+          {
+            "versionCode": ${VERSION_CODE},
+            "versionName": "${VERSION_NAME}",
+            "downloadUrl": "${DOWNLOAD_URL}",
+            "forceUpdate": false
+          }
+          EOF
+
+      - name: Commit update.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add update.json
+          git commit -m "Update update.json for ${GITHUB_REF_NAME}" || echo "No changes"
+          git push origin HEAD:main
