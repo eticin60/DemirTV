@@ -8,10 +8,16 @@ import android.os.Environment
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.onurcan.demirtv.BuildConfig
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +36,7 @@ object UpdateManager {
         var showDialog by remember { mutableStateOf(false) }
         var isDownloading by remember { mutableStateOf(false) }
         var downloadStatus by remember { mutableStateOf("İndiriliyor...") }
+        var progressPercent by remember { mutableStateOf(0) }
         val scope = rememberCoroutineScope()
         
         val currentVersionCode = BuildConfig.VERSION_CODE
@@ -49,13 +56,22 @@ object UpdateManager {
                 },
                 title = { Text("Yeni Sürüm Hazır") },
                 text = {
-                    Text(
+                    Column {
+                        Text(
+                            if (updateInfo!!.forceUpdate) {
+                                "Bu güncelleme zorunludur. Devam etmek için lütfen güncelleyin."
+                            } else {
+                                "DemirTV v${updateInfo!!.versionName} sürümü çıktı. Yeni özellikler ve performans iyileştirmeleri için güncelleyin."
+                            }
+                        )
+
                         if (isDownloading) {
-                            downloadStatus
-                        } else {
-                            "DemirTV v${updateInfo!!.versionName} sürümü çıktı. Yeni özellikler ve performans iyileştirmeleri için güncelleyin."
+                            Spacer(modifier = Modifier.height(16.dp))
+                            LinearProgressIndicator(progress = progressPercent / 100f)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("$downloadStatus %$progressPercent")
                         }
-                    )
+                    }
                 },
                 confirmButton = {
                     TextButton(
@@ -72,11 +88,18 @@ object UpdateManager {
 
                             isDownloading = true
                             downloadStatus = "İndiriliyor..."
+                            progressPercent = 0
                             val info = updateInfo!!
 
                             // Start download & then trigger installer
                             scope.launch {
-                                val result = downloadApk(context, info.downloadUrl)
+                                val result = downloadApk(
+                                    context = context,
+                                    url = info.downloadUrl,
+                                    onProgress = { percent ->
+                                        progressPercent = percent
+                                    }
+                                )
                                 if (result != null) {
                                     downloadStatus = "Kurulum başlatılıyor..."
                                     launchInstaller(context, result)
@@ -122,7 +145,11 @@ object UpdateManager {
         val forceUpdate: Boolean
     )
 
-    private suspend fun downloadApk(context: Context, url: String): Uri? = withContext(Dispatchers.IO) {
+    private suspend fun downloadApk(
+        context: Context,
+        url: String,
+        onProgress: (Int) -> Unit
+    ): Uri? = withContext(Dispatchers.IO) {
         try {
             val fileName = "DemirTV-update.apk"
             val downloadsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
@@ -143,6 +170,12 @@ object UpdateManager {
                 dm.query(query).use { cursor ->
                     if (cursor != null && cursor.moveToFirst()) {
                         val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                        val total = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                        val downloaded = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                        if (total > 0) {
+                            val percent = ((downloaded * 100) / total).toInt().coerceIn(0, 100)
+                            onProgress(percent)
+                        }
                         if (status == DownloadManager.STATUS_SUCCESSFUL) {
                             val apkUri = FileProvider.getUriForFile(
                                 context,
