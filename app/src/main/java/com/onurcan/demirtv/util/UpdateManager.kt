@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AlertDialogDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,6 +41,8 @@ import android.os.SystemClock
 import com.onurcan.demirtv.R
 import com.onurcan.demirtv.ui.theme.RedPrimary
 import com.onurcan.demirtv.ui.theme.White
+import com.onurcan.demirtv.ui.theme.DarkGrey
+import com.onurcan.demirtv.ui.theme.SilverText
 import androidx.compose.ui.graphics.Color
 
 object UpdateManager {
@@ -78,6 +83,12 @@ object UpdateManager {
                 onDismissRequest = {
                     if (!updateInfo!!.forceUpdate) showDialog = false
                 },
+                modifier = Modifier.border(1.dp, White.copy(alpha = 0.08f), RoundedCornerShape(28.dp)),
+                shape = RoundedCornerShape(28.dp),
+                containerColor = DarkGrey,
+                tonalElevation = 0.dp,
+                titleContentColor = White,
+                textContentColor = SilverText,
                 title = { Text("Yeni Sürüm Hazır") },
                 text = {
                     Column {
@@ -111,7 +122,7 @@ object UpdateManager {
                     }
                 },
                 confirmButton = {
-                    TextButton(
+                    Button(
                         enabled = !isDownloading,
                         onClick = {
                             if (!context.packageManager.canRequestPackageInstalls()) {
@@ -155,12 +166,18 @@ object UpdateManager {
                                 }
                             }
                         }
+                    , colors = ButtonDefaults.buttonColors(
+                        containerColor = RedPrimary,
+                        contentColor = White,
+                        disabledContainerColor = RedPrimary.copy(alpha = 0.4f),
+                        disabledContentColor = White.copy(alpha = 0.7f)
+                    )
                     ) { Text(if (isDownloading) "İndiriliyor..." else "ŞİMDİ GÜNCELLE") }
                 },
                 dismissButton = if (updateInfo!!.forceUpdate) null else {
                     {
                         TextButton(onClick = { showDialog = false }) {
-                            Text("DAHA SONRA")
+                            Text("DAHA SONRA", color = SilverText)
                         }
                     }
                 }
