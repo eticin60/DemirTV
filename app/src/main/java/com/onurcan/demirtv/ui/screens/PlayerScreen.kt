@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -25,6 +26,8 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.onurcan.demirtv.data.model.Channel
 import com.onurcan.demirtv.ui.theme.*
 import com.onurcan.demirtv.util.WatchStats
@@ -33,6 +36,7 @@ import com.onurcan.demirtv.util.WatchStats
 @Composable
 fun PlayerScreen(channel: Channel) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     
     LaunchedEffect(channel.streamUrl) {
         WatchStats.incrementWatch(context, channel)
@@ -59,8 +63,22 @@ fun PlayerScreen(channel: Channel) {
 
     var showQualityMenu by remember { mutableStateOf(false) }
 
-    DisposableEffect(channel) {
+    DisposableEffect(channel, lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> exoPlayer.pause()
+                Lifecycle.Event.ON_STOP -> exoPlayer.pause()
+                Lifecycle.Event.ON_RESUME -> {
+                    exoPlayer.seekToDefaultPosition()
+                    exoPlayer.playWhenReady = true
+                }
+                Lifecycle.Event.ON_DESTROY -> exoPlayer.release()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
             exoPlayer.release()
         }
     }
